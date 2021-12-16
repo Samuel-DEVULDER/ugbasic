@@ -1025,7 +1025,7 @@ static void vars_decide(int *num_dp, int *num_inlined) {
 
         /* can't inline > 2 bytes */
         if(v->offset == -1 && v->size>2) v->offset = 0;
-
+		
         /* check if inlining is good */
         if(v->offset == -1) {
             /* LDA: imm=2, dp=4, extended=5
@@ -1062,7 +1062,7 @@ static void vars_optim(buffer buf[LOOK_AHEAD]) {
     /* code section */
     if(match( buf[0], " ST* *", op, var) && vars_ok(var)) {
         struct var *v = vars_get(var);
-        if(v->nb_rd == 0) {
+        if(v->nb_rd == 0 && v->offset>=0) {
             char *rep = NULL;
             if(match(buf[1], " IF ") && match(buf[2], " LB")) {
                 if(*op->str=='X') rep = "\tLEAX ,X";
@@ -1083,6 +1083,7 @@ static void vars_optim(buffer buf[LOOK_AHEAD]) {
         } else if(v->offset == -1 && chg_reg(buf[0], REG)
                && ((strchr("DXYU", *REG->str)!=NULL  && v->size==2) || v->size==1) ) {
             v->offset = -2;
+			v->flags |= NO_REMOVE;
             optim(buf[0], "inlined", "\t%s #%s%s\n%s equ *-%d", op->str,
                     v->init==NULL ? var->str : v->init,
                     v->init==NULL ? (v->size==2 ? "" : "&$ff") : "",
@@ -1113,7 +1114,7 @@ static void vars_optim(buffer buf[LOOK_AHEAD]) {
     || match( buf[0], "* fcb ", var)
     || match( buf[0], "* fdb ", var) ) if(vars_ok(var)) {
         struct var *v = vars_get(var);
-        if(v->nb_rd==0 && v->size<=4 && 0==(v->flags & NO_REMOVE)) {
+        if(v->nb_rd==0 && v->size<=4 && 0==(v->flags & NO_REMOVE) && v->offset>=0) {
             optim(buf[0], "unread variable",NULL);
         } else if(v->offset > 0) {
             optim(buf[0], "direct-page", "%s equ $%02x", var->str, v->offset);
