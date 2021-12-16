@@ -1850,7 +1850,7 @@ void cpu6809_compare_32bit( Environment * _environment, char *_source, char *_de
             cpu6809_compare_16bit( _environment, _source, _destination, _other, _positive );
 
             outline1("LDA %s", _other );
-            outline1("BEQ %sdone", _other );
+            outline1("BEQ %sdone", label );
 
             cpu6809_compare_16bit( _environment, sourceEffective, destinationEffective, _other, _positive );
 
@@ -1859,13 +1859,13 @@ void cpu6809_compare_32bit( Environment * _environment, char *_source, char *_de
             cpu6809_compare_16bit( _environment, _source, _destination, _other, _positive );
 
             outline1("LDA %s", _other );
-            outline1("BNE %sdone", _other );
+            outline1("BNE %sdone", label );
 
             cpu6809_compare_16bit( _environment, sourceEffective, destinationEffective, _other, _positive );
 
         }
 
-        outhead1("%sdone", _other );
+        outhead1("%sdone", label );
 
     no_embedded( cpu_compare_32bit )
 
@@ -3919,64 +3919,47 @@ void cpu6809_number_to_string( Environment * _environment, char * _number, char 
             outline0("STD <MATHPTR0");
             if ( _signed ) {
                 outline0("STA <MATHPTR4");
+                outline1("BPL %spositive", label );
+                cpu6809_complement2_32bit( _environment, "<MATHPTR0", NULL);
+                outhead1("%spositive", label );
             } else {
-				outline0("CLR <MATHPTR4");
-			}
+                outline0("CLR <MATHPTR4");
+            }
             break;
         case 16:
             outline1("LDD %s", _number );
             outline0("STD <MATHPTR2");
             if ( _signed ) {
                 outline0("STA <MATHPTR4");
+                outline1("BPL %spositive", label );
+                cpu6809_complement2_16bit( _environment, "<MATHPTR2", NULL);
+                outhead1("%spositive", label );
             }
-			outline0("LDD #0");
+            outline0("LDD #0");
             outline0("STD <MATHPTR0");
-            if ( !_signed ) {
-				outline0("STA <MATHPTR4");
-			}
-	     break;
+            if ( !_signed ) outline0("STA <MATHPTR4");
+            break;
         case 8:
-            outline1("LDA %s", _number );
-            outline0("STA <MATHPTR3");
-            if ( _signed ) {
-                outline0("STA <MATHPTR4");
+            outline1("LDB %s", _number );
+            outline0("CLRA");
+            outline0("STD <MATHPTR2");
+            if ( _signed && _bits == 8 ) {
+                outline0("STB <MATHPTR4");
+                outline1("BPL %spositive", label );
+                cpu6809_complement2_8bit( _environment, "<MATHPTR3", NULL);
+                outhead1("%spositive", label );
             }
-			outline0("LDD #0");
+            outline0("CLRB");
             outline0("STD <MATHPTR0");
-			outline0("STA <MATHPTR2");
-            if ( !_signed ) {
-				outline0("STA <MATHPTR4");
-			}
+            if ( !_signed ) outline0("STA <MATHPTR4");
             break;
     }
 
-	if(_signed) {
-		outline0("LDA <MATHPTR4");
-		outline1("BPL %spositive", label );
-		switch( _bits ) {
-			case 32:
-				cpu6809_complement2_32bit( _environment, "<MATHPTR0", NULL);
-				break;
-			case 16:
-				cpu6809_complement2_16bit( _environment, "<MATHPTR2", NULL);
-				break;
-			case 8:
-				cpu6809_complement2_8bit( _environment, "<MATHPTR3", NULL);
-				break;
-		}
-		outhead1("%spositive", label );
-	}
-    // outline0("LDX <MATHPTR2" );
 
+    outline1("LDX %s", _string );
     outline1("LDA #$%2.2X", _bits );
-    outline0("STA <MATHPTR5");
-
-    outline1("LDD %s", _string );
-    outline0("STD <TMPPTR");
-
     outline0("JSR N2STRING");
 
-    outline0("LDA <MATHPTR5" );
     outline1("STA %s", _string_size);
 
 }
@@ -4371,6 +4354,27 @@ void cpu6809_protothread_current( Environment * _environment, char * _current ) 
 
     outline0("LDB PROTOTHREADCT" );
     outline1("STB %s", _current );
+
+}
+
+void cpu6809_is_negative( Environment * _environment, char * _value, char * _result ) {
+
+    MAKE_LABEL
+
+    inline( cpu_is_negative )
+
+        outline1("LDA %s", _value);
+        outline0("ANDA #$80");
+        outline1("BEQ %s", label);
+        outline0("LDA #$FF");
+        outline1("STA %s", _result );
+        outline1("JMP %sdone", label);
+        outhead1("%s", label);
+        outline0("LDA #$00");
+        outline1("STA %s", _result );
+        outhead1("%sdone", label);
+
+    no_embedded( cpu_is_negative )
 
 }
 

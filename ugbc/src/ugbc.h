@@ -170,7 +170,10 @@ typedef enum _VariableType {
     VT_THREAD = 16,
 
     /** IMAGES (static pictures) */
-    VT_IMAGES = 17
+    VT_IMAGES = 17,
+
+    /** CHAR (printable character) */
+    VT_CHAR = 18
 
 } VariableType;
 
@@ -188,7 +191,7 @@ typedef enum _VariableType {
 #define VT_BW_32BIT( t, v )             ( ( (t) == (v) ) ? 32 : 0 )
 
 #define VT_BITWIDTH( t ) \
-        ( VT_BW_8BIT( t, VT_BYTE ) + VT_BW_8BIT( t, VT_SBYTE ) + VT_BW_8BIT( t, VT_COLOR ) + VT_BW_8BIT( t, VT_THREAD ) + \
+        ( VT_BW_8BIT( t, VT_CHAR ) + VT_BW_8BIT( t, VT_BYTE ) + VT_BW_8BIT( t, VT_SBYTE ) + VT_BW_8BIT( t, VT_COLOR ) + VT_BW_8BIT( t, VT_THREAD ) + \
         VT_BW_16BIT( t, VT_WORD ) + VT_BW_16BIT( t, VT_SWORD ) + VT_BW_16BIT( t, VT_ADDRESS ) + VT_BW_16BIT( t, VT_POSITION ) + \
         VT_BW_32BIT( t, VT_DWORD ) + VT_BW_32BIT( t, VT_SDWORD ) )
 
@@ -406,6 +409,11 @@ typedef struct _Variable {
      * The absolute address of this variable (if any).
      */
     int absoluteAddress;
+
+    /** 
+     * Is a printable buffer?
+     */
+    int printable;
 
     /** 
      * Pointer to the bank where this variable belongs to.
@@ -834,6 +842,7 @@ typedef struct _Embedded {
     int cpu_mobat;
     int cpu_mobrender;
     int cpu_sqroot;
+    int cpu_is_negative;
 
 } Embedded;
 
@@ -851,6 +860,7 @@ typedef struct _Deployed {
     int vic1vars;
     int vic1startup;
     int vic2vars;
+    int vic2varsGraphic;
     int vic2startup;
     int tedvars;
     int tedstartup;
@@ -864,12 +874,18 @@ typedef struct _Deployed {
     int dstring;
     int scancode;
     int textEncodedAt;
+    int textEncodedAtText;
+    int textEncodedAtGraphic;
     int numberToString;
     int bitsToString;
     int vScroll;
     int vScrollText;
+    int vScrollTextUp;
+    int vScrollTextDown;
     int textVScrollScreen;
     int cls;
+    int clsText;
+    int clsGraphic;
     int textCline;
     int textHScroll;
     int textHScrollLine;
@@ -898,6 +914,14 @@ typedef struct _ProtothreadConfig {
 
 } ProtothreadConfig;
 
+typedef struct _InputConfig {
+
+    char separator;
+    int size;
+    char cursor;
+
+} InputConfig;
+
 typedef struct _TileDescriptor {
 
     int whiteArea;
@@ -922,6 +946,9 @@ typedef struct _TileDescriptors {
 } TileDescriptors;
 
 typedef int (*RgbConverterFunction)(int, int, int);
+
+extern int yycolno;
+extern int yyposno;
 
 /**
  * @brief Structure of compilation environment
@@ -1016,6 +1043,11 @@ typedef struct _Environment {
      * 
      */
     ProtothreadConfig protothreadConfig;
+
+    /**
+     * 
+     */
+    InputConfig inputConfig;
 
     /**
      * Type of output. 
@@ -1300,6 +1332,11 @@ typedef struct _Environment {
      */
     int paletteIndex;
 
+    /**
+     * Is original source included?
+     */
+    int tenLinerRulesEnforced;
+
     /* --------------------------------------------------------------------- */
     /* OUTPUT PARAMETERS                                                     */
     /* --------------------------------------------------------------------- */
@@ -1329,11 +1366,11 @@ typedef struct _Environment {
 #define UNIQUE_ID            _environment->uniqueId++
 #define UNIQUE_RESOURCE_ID   _environment->uniqueResourceId++
 #define MAKE_LABEL  char label[12]; sprintf( label, "_label%d", UNIQUE_ID);
-#define CRITICAL( s ) fprintf(stderr, "CRITICAL ERROR during compilation of %s:\n\t%s at %d\n", ((struct _Environment *)_environment)->sourceFileName, s, ((struct _Environment *)_environment)->yylineno ); target_cleanup( ((struct _Environment *)_environment) ); exit( EXIT_FAILURE );
-#define CRITICAL2( s, v ) fprintf(stderr, "CRITICAL ERROR during compilation of %s:\n\t%s (%s) at %d\n", ((struct _Environment *)_environment)->sourceFileName, s, v, ((struct _Environment *)_environment)->yylineno ); target_cleanup( ((struct _Environment *)_environment) ); exit( EXIT_FAILURE );
-#define CRITICAL2i( s, v ) fprintf(stderr, "CRITICAL ERROR during compilation of %s:\n\t%s (%d) at %d\n", ((struct _Environment *)_environment)->sourceFileName, s, v, ((struct _Environment *)_environment)->yylineno ); target_cleanup( ((struct _Environment *)_environment) ); exit( EXIT_FAILURE );
-#define CRITICAL3( s, v1, v2 ) fprintf(stderr, "CRITICAL ERROR during compilation of %s:\n\t%s (%s, %s) at %d\n", ((struct _Environment *)_environment)->sourceFileName, s, v1, v2, ((struct _Environment *)_environment)->yylineno ); target_cleanup( ((struct _Environment *)_environment) ); exit( EXIT_FAILURE );
-#define CRITICAL4si( s, v, d1, d2 ) fprintf(stderr, "CRITICAL ERROR during compilation of %s:\n\t%s (%s, %d, %d) at %d\n", ((struct _Environment *)_environment)->sourceFileName, s, v, d1, d2, ((struct _Environment *)_environment)->yylineno ); target_cleanup( ((struct _Environment *)_environment) ); exit( EXIT_FAILURE );
+#define CRITICAL( s ) fprintf(stderr, "CRITICAL ERROR during compilation of %s:\n\t%s at %d column %d (%d)\n", ((struct _Environment *)_environment)->sourceFileName, s, ((struct _Environment *)_environment)->yylineno, (yycolno+1), (yyposno+1) ); target_cleanup( ((struct _Environment *)_environment) ); exit( EXIT_FAILURE );
+#define CRITICAL2( s, v ) fprintf(stderr, "CRITICAL ERROR during compilation of %s:\n\t%s (%s) at %d column %d (%d)\n", ((struct _Environment *)_environment)->sourceFileName, s, v, ((struct _Environment *)_environment)->yylineno, (yycolno+1), (yyposno+1) ); target_cleanup( ((struct _Environment *)_environment) ); exit( EXIT_FAILURE );
+#define CRITICAL2i( s, v ) fprintf(stderr, "CRITICAL ERROR during compilation of %s:\n\t%s (%d) at %d column %d (%d)\n", ((struct _Environment *)_environment)->sourceFileName, s, v, ((struct _Environment *)_environment)->yylineno, (yycolno+1), (yyposno+1) ); target_cleanup( ((struct _Environment *)_environment) ); exit( EXIT_FAILURE );
+#define CRITICAL3( s, v1, v2 ) fprintf(stderr, "CRITICAL ERROR during compilation of %s:\n\t%s (%s, %s) at %d column %d (%d)\n", ((struct _Environment *)_environment)->sourceFileName, s, v1, v2, ((struct _Environment *)_environment)->yylineno, (yycolno+1), (yyposno+1) ); target_cleanup( ((struct _Environment *)_environment) ); exit( EXIT_FAILURE );
+#define CRITICAL4si( s, v, d1, d2 ) fprintf(stderr, "CRITICAL ERROR during compilation of %s:\n\t%s (%s, %d, %d) at %d column %d (%d)\n", ((struct _Environment *)_environment)->sourceFileName, s, v, d1, d2, ((struct _Environment *)_environment)->yylineno, (yycolno+1), (yyposno+1) ); target_cleanup( ((struct _Environment *)_environment) ); exit( EXIT_FAILURE );
 #define CRITICAL_UNIMPLEMENTED( v ) CRITICAL2("E000 - Internal method not implemented:", v );
 #define CRITICAL_TEMPORARY2( v ) CRITICAL2("E001 - Unable to create space for temporary variable", v );
 #define CRITICAL_VARIABLE( v ) CRITICAL2("E002 - Using of an undefined variable", v );
@@ -1440,6 +1477,11 @@ typedef struct _Environment {
 #define CRITICAL_ADD_INPLACE_UNSUPPORTED( v, t ) CRITICAL3("E102 - Add in place unsupported for variable of given datatype", v, t );
 #define CRITICAL_SUB_INPLACE_UNSUPPORTED( v, t ) CRITICAL3("E103 - Sub in place unsupported for variable of given datatype", v, t );
 #define CRITICAL_HEX_UNSUPPORTED( v, t ) CRITICAL3("E104 - HEX unsupported for variable of given datatype", v, t );
+#define CRITICAL_PRINT_BUFFER_ON_A_NOT_BUFFER( v ) CRITICAL2("E105 - PRINT BUFFER not allowed for non buffer variables", v );
+#define CRITICAL_10_LINE_RULES_ENFORCED( v ) CRITICAL2("E106 - this command is not allowed on sources for 10 liner contest", v );
+#define CRITICAL_INVALID_INPUT_SEPARATOR( d ) CRITICAL2i("E107 - invalid character used for INPUT separator", d);
+#define CRITICAL_INVALID_INPUT_SIZE( d ) CRITICAL2i("E108 - invalid size for INPUT temporary buffer", d);
+#define CRITICAL_INVALID_INPUT_CURSOR( d ) CRITICAL2i("E109 - invalid cursor character for INPUT", d);
 #define WARNING( s ) if ( ((struct _Environment *)_environment)->warningsEnabled) { fprintf(stderr, "WARNING during compilation of %s:\n\t%s at %d\n", ((struct _Environment *)_environment)->sourceFileName, s, ((struct _Environment *)_environment)->yylineno ); }
 #define WARNING2( s, v ) if ( ((struct _Environment *)_environment)->warningsEnabled) { fprintf(stderr, "WARNING during compilation of %s:\n\t%s (%s) at %d\n", ((struct _Environment *)_environment)->sourceFileName, s, v, _environment->yylineno ); }
 #define WARNING2i( s, v ) if ( ((struct _Environment *)_environment)->warningsEnabled) { fprintf(stderr, "WARNING during compilation of %s:\n\t%s (%i) at %d\n", ((struct _Environment *)_environment)->sourceFileName, s, v, _environment->yylineno ); }
@@ -1748,12 +1790,14 @@ void setup_embedded( Environment *_environment );
 void target_install( Environment *_environment );
 void begin_compilation( Environment * _environment );
 void target_initialization( Environment *_environment );
+void shell_injection( Environment * _environment );
 void target_finalization( Environment * _environment );
 void target_analysis( Environment * _environment );
 void end_compilation( Environment * _environment );
 void target_peephole_optimizer( Environment * _environment );
 void begin_build( Environment * _environment );
 void target_linkage( Environment *_environment );
+void target_finalize( Environment * _environment );
 void target_cleanup( Environment *_environment );
 void end_build( Environment * _environment );
 void bank_cleanup( Environment * _environment );
@@ -1865,6 +1909,7 @@ void                    end_procedure( Environment * _environment, char * _value
 void                    end_repeat( Environment * _environment, char * _expression );
 void                    end_select_case( Environment * _environment );
 void                    end_while( Environment * _environment );
+char *                  escape_newlines( char * _string );
 void                    every_cleanup( Environment * _environment );
 void                    every_off( Environment * _environment );
 void                    every_on( Environment * _environment );
@@ -1989,9 +2034,11 @@ void                    offsetting_size_count( Environment * _environment, int _
 void                    on_gosub( Environment * _environment, char * _expression );
 void                    on_gosub_end( Environment * _environment );
 void                    on_gosub_index( Environment * _environment, char * _label );
+void                    on_gosub_number( Environment * _environment, int _number );
 void                    on_goto( Environment * _environment, char * _expression );
 void                    on_goto_end( Environment * _environment );
 void                    on_goto_index( Environment * _environment, char * _label );
+void                    on_goto_number( Environment * _environment, int _number );
 void                    on_proc( Environment * _environment, char * _expression );
 void                    on_proc_end( Environment * _environment );
 void                    on_proc_index( Environment * _environment, char * _label );
@@ -2015,6 +2062,7 @@ void                    pop( Environment * _environment );
 Variable *              powering( Environment * _environment, char * _source, char * _dest );
 TileDescriptors *       precalculate_tile_descriptors_for_font( char * _fontData );
 void                    print( Environment * _environment, char * _text, int _new_line );
+void                    print_buffer( Environment * _environment, char * _buffer, int _new_line, int _printable );
 void                    print_newline( Environment * _environment );
 void                    print_question_mark( Environment * _environment );
 void                    print_tab( Environment * _environment, int _new_line );
@@ -2123,6 +2171,12 @@ void                    tiles_at( Environment * _environment, int _address );
 void                    tiles_at_var( Environment * _environment, char * _address );
 
 //----------------------------------------------------------------------------
+// *u*
+//----------------------------------------------------------------------------
+
+char *                  unescape_string( Environment * _environment, char * _value );
+
+//----------------------------------------------------------------------------
 // *V*
 //----------------------------------------------------------------------------
 
@@ -2159,6 +2213,7 @@ Variable *              variable_move_naked( Environment * _environment, char * 
 Variable *              variable_mul( Environment * _environment, char * _source, char * _dest );
 Variable *              variable_mul2_const( Environment * _environment, char * _source, int _bits );
 Variable *              variable_not( Environment * _environment, char * _value );
+void                    variable_on_memory_init( Environment * _environment );
 Variable *              variable_or( Environment * _environment, char * _left, char * _right );
 Variable *              variable_or( Environment * _environment, char * _source, char * _dest );
 void                    variable_temporary_remove( Environment * _environment, char * _name );

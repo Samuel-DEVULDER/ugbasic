@@ -2439,7 +2439,7 @@ void cpu6502_less_than_32bit( Environment * _environment, char *_source, char *_
                 outline1("BEQ %smi", label );
             }
             outhead1("%spl:", label );
-            outline0("LDA #0" );
+            outline0("LDA #$FF" );
             if ( _other ) {
                 outline1("STA %s", _other);
             } else {
@@ -2447,7 +2447,7 @@ void cpu6502_less_than_32bit( Environment * _environment, char *_source, char *_
             }
             outline1("JMP %sen", label );
             outhead1("%smi:", label );
-            outline0("LDA #$ff" );
+            outline0("LDA #$00" );
             if ( _other ) {
                 outline1("STA %s", _other);
             } else {
@@ -3625,6 +3625,8 @@ void cpu6502_mem_move_direct_indirect_size( Environment * _environment, char *_s
             outline0("STX CPUMEMMOVE_SIZE" );
             outline1("LDX #$%2.2X", ( _size >> 8 ) & 0xff );
             outline0("STX CPUMEMMOVE_SIZE+1" );
+            outline1("LDA #>%s", _source );
+            outline0("STA TMPPTR+1" );
             outline1("LDA #<%s", _source );
             outline0("STA TMPPTR" );
             outline1("LDA %s+1", _destination );
@@ -5003,6 +5005,27 @@ void cpu6502_protothread_current( Environment * _environment, char * _current ) 
 
     outline0("LDX PROTOTHREADCT" );
     outline1("STX %s", _current );
+
+}
+
+void cpu6502_is_negative( Environment * _environment, char * _value, char * _result ) {
+
+    MAKE_LABEL
+
+    inline( cpu_is_negative )
+
+        outline1("LDA %s", _value);
+        outline0("AND #$80");
+        outline1("BEQ %s", label);
+        outline0("LDA #$FF");
+        outline1("STA %s", _result );
+        outline1("JMP %sdone", label);
+        outhead1("%s:", label);
+        outline0("LDA #$00");
+        outline1("STA %s", _result );
+        outhead1("%sdone:", label);
+
+    no_embedded( cpu_is_negative )
 
 }
 

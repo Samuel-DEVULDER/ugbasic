@@ -99,6 +99,7 @@ void target_initialization( Environment * _environment ) {
     outhead0(".include \"atari.inc\"");
     outhead0(".segment \"CODE\"");
     outhead0(".proc MAINENTRY");
+
     deploy( vars, src_hw_atari_vars_asm);
 
     bank_define( _environment, "STRINGS", BT_STRINGS, 0x4200, NULL );
@@ -110,6 +111,10 @@ void target_initialization( Environment * _environment ) {
     antic_initialization( _environment );
     gtia_initialization( _environment );
 
+    if ( _environment->tenLinerRulesEnforced ) {
+        shell_injection( _environment );
+    }
+    
 }
 
 void target_linkage( Environment * _environment ) {

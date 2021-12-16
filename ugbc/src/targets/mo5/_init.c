@@ -81,6 +81,7 @@ void target_initialization( Environment * _environment ) {
 
     outline0("ORG $3000");
     outline0("LDS #$9FFF");
+
     deploy( vars, src_hw_mo5_vars_asm);
     deploy( startup, src_hw_mo5_startup_asm);
     // bank_define( _environment, "STRINGS", BT_STRINGS, 0x4200, NULL );
@@ -92,6 +93,10 @@ void target_initialization( Environment * _environment ) {
     setup_text_variables( _environment );
 
     ef936x_initialization( _environment );
+
+    if ( _environment->tenLinerRulesEnforced ) {
+        shell_injection( _environment );
+    }
 
 }
 

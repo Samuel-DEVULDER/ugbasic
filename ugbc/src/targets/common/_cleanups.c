@@ -64,7 +64,7 @@ void end_compilation( Environment * _environment ) {
     bank_cleanup( _environment );
     every_cleanup( _environment );
     variable_cleanup( _environment );
-
+    
     target_finalization( _environment );
 
     if ( _environment->configurationFileName ) {
@@ -81,6 +81,8 @@ void end_compilation( Environment * _environment ) {
 }
 
 void end_build( Environment * _environment ) {
+
+    target_finalize( _environment );
 
     target_cleanup( _environment );
     
