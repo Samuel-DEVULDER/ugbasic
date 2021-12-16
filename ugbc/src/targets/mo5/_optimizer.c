@@ -1025,7 +1025,7 @@ static void vars_decide(int *num_dp, int *num_inlined) {
 
         /* can't inline > 2 bytes */
         if(v->offset == -1 && v->size>2) v->offset = 0;
-
+		
         /* check if inlining is good */
         if(v->offset == -1) {
             /* LDA: imm=2, dp=4, extended=5
@@ -1083,6 +1083,7 @@ static void vars_optim(buffer buf[LOOK_AHEAD]) {
         } else if(v->offset == -1 && chg_reg(buf[0], REG)
                && ((strchr("DXYU", *REG->str)!=NULL  && v->size==2) || v->size==1) ) {
             v->offset = -2;
+			v->flags |= NO_REMOVE;
             optim(buf[0], "inlined", "\t%s #%s%s\n%s equ *-%d", op->str,
                     v->init==NULL ? var->str : v->init,
                     v->init==NULL ? (v->size==2 ? "" : "&$ff") : "",
